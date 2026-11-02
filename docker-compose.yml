@@ -1,0 +1,50 @@
+name: pixelworks-api
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pixelworks-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pixelworks_db}
+      POSTGRES_USER: ${DB_USER:-pixelworks}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD en .env usando INICIAR.cmd}
+    ports:
+      - "127.0.0.1:${DB_EXTERNAL_PORT:-5433}:5432"
+    volumes:
+      - pixelworks_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    container_name: pixelworks-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8080"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-pixelworks_db}
+      DB_USER: ${DB_USER:-pixelworks}
+      DB_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD en .env usando INICIAR.cmd}
+      JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET en .env usando INICIAR.cmd}
+      JPA_DDL_AUTO: update
+      JPA_SHOW_SQL: "false"
+      UPLOAD_DIR: /app/uploads
+      APP_DEMO_ENABLED: ${APP_DEMO_ENABLED:-false}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-}
+    ports:
+      - "${API_BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+    volumes:
+      - pixelworks_uploads:/app/uploads
+
+volumes:
+  pixelworks_db_data:
+  pixelworks_uploads:
